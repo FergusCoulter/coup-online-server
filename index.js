@@ -21,7 +21,13 @@ import {config} from "dotenv";
 
 const supabaseUrl = 'https://nwtapcoruuxdisphqvaz.supabase.co'
 const supabaseKey = process.env.SUPABASE_KEY
-const supabase = createClient(supabaseUrl, supabaseKey)
+const supabase = createClient(supabaseUrl, supabaseKey, {
+    auth:{
+        autoRefreshToken:false,
+        persistSession:false,
+        detectSessionInUrl:false
+    }
+})
 
 
 io.on('connection', async (socket) => {
@@ -30,6 +36,25 @@ io.on('connection', async (socket) => {
     const { data, error } = await supabase
         .from('room')
         .select();
+
+    socket.on('create-room', async () =>{
+        console.log('created a room');
+        const {error} = await supabase.from('room').insert(
+            {name:"Test Insert", code:"TYAH176", created_at:new Date()}
+        );
+        console.log(error);
+    })
+
+    socket.on('login', async ({ token }) => {
+        const { data, error } = await supabase.auth.getUser(token);
+        if (error || !data.user) {
+            console.log(error)
+            socket.emit('auth_error', 'Invalid token');
+        } else {
+            socket.emit('auth_success', `Welcome, ${data.user.email}`);
+            console.log('User authenticated:', data.user.email);
+        }
+    });
 
     console.log(data)
 });
